@@ -191,6 +191,29 @@
                 </div>
                 <span class="form-hint">Straight-line distance between pickup and drop-off</span>
               </div>
+
+              <!-- Heavy item checkbox -->
+              <div style="margin-top:1.25rem; background:var(--orange-light); border:2px solid var(--orange); border-radius:var(--radius-sm); padding:1rem 1.25rem;">
+                <label style="display:flex; align-items:flex-start; gap:0.75rem; cursor:pointer;">
+                  <input
+                    type="checkbox"
+                    id="heavy_item"
+                    name="heavy_item"
+                    value="on"
+                    style="width:20px; height:20px; accent-color:var(--orange); flex-shrink:0; margin-top:2px;"
+                    {% if form and form.heavy_item %}checked{% endif %}
+                  >
+                  <div>
+                    <span style="font-weight:700; font-size:0.95rem; color:var(--black);">
+                      Heavy item (furniture, large TV, appliances) — requires 2 runners
+                    </span>
+                    <p style="margin:0.2rem 0 0; font-size:0.82rem; color:var(--gray-mid);">
+                      Delivery fee doubles to cover a second runner. Platform fee stays the same.
+                    </p>
+                  </div>
+                </label>
+              </div>
+
             </div>
           </div>
 
@@ -297,6 +320,7 @@
   // Live Quote ----------------------------------------------------------------
   const priceInput    = document.getElementById('item_price');
   const distanceInput = document.getElementById('distance_miles');
+  const heavyInput    = document.getElementById('heavy_item');
   const quoteContent  = document.getElementById('quote-content');
   const fbInput       = document.getElementById('fb_link');
   const fbPreview     = document.getElementById('fb-preview');
@@ -309,13 +333,19 @@
   }
 
   function renderQuote(data) {
+    const heavyNote = data.heavy_item
+      ? `<div style="background:rgba(255,107,53,0.15);border:1px solid rgba(255,107,53,0.4);border-radius:6px;padding:0.5rem 0.75rem;margin-bottom:0.75rem;font-size:0.82rem;color:rgba(255,200,150,0.9);">
+           <strong>Heavy item:</strong> delivery fee doubled — 2 runners dispatched.
+         </div>`
+      : '';
     quoteContent.innerHTML = `
+      ${heavyNote}
       <div class="quote-row">
         <span class="label">Item price</span>
         <span class="amount">${formatMoney(data.item_price)}</span>
       </div>
       <div class="quote-row">
-        <span class="label">Delivery fee (${data.distance_miles} mi)</span>
+        <span class="label">Delivery fee (${data.distance_miles} mi${data.heavy_item ? ' · 2 runners' : ''})</span>
         <span class="amount">${formatMoney(data.delivery_fee)}</span>
       </div>
       <div class="quote-row">
@@ -335,6 +365,7 @@
   function fetchQuote() {
     const price    = parseFloat(priceInput.value);
     const distance = parseFloat(distanceInput.value);
+    const heavy    = heavyInput.checked ? 'true' : 'false';
 
     if (!price || !distance || price < 1 || distance < 0.1) {
       quoteContent.innerHTML = '<div class="quote-placeholder">Enter an item price and distance to see your quote.</div>';
@@ -343,7 +374,7 @@
 
     quoteContent.innerHTML = '<div class="quote-placeholder"><span class="spinner"></span> Calculating...</div>';
 
-    fetch(`/api/quote?item_price=${price}&distance_miles=${distance}`)
+    fetch(`/api/quote?item_price=${price}&distance_miles=${distance}&heavy_item=${heavy}`)
       .then(r => r.json())
       .then(data => {
         if (data.error) {
@@ -364,6 +395,7 @@
 
   priceInput.addEventListener('input', debouncedQuote);
   distanceInput.addEventListener('input', debouncedQuote);
+  heavyInput.addEventListener('change', fetchQuote);
 
   // Prefill from URL params if any
   const urlParams = new URLSearchParams(window.location.search);

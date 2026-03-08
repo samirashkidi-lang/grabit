@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — GrabIt Runner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a href="/" class="navbar-brand">Grab<span>It</span></a>
+    <div class="navbar-links">
+      <a href="/">Home</a>
+      <a href="/order">Place Order</a>
+      <span style="color:rgba(255,255,255,0.6); font-size:0.9rem;">{{ runner.name }}</span>
+      <a href="/runner/logout" class="btn btn-outline btn-sm">Log Out</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Runner Header -->
+<div class="runner-header">
+  <div class="container" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+    <div>
+      <h1 style="display:flex; align-items:center; gap:0.6rem;">
+        <span style="width:48px; height:48px; border-radius:50%; background:var(--orange); display:inline-flex; align-items:center; justify-content:center; font-size:1.25rem; font-weight:800; color:white; flex-shrink:0;">
+          {{ runner.name[0].upper() }}
+        </span>
+        {{ runner.name }}'s Dashboard
+      </h1>
+      {% if not runner.is_approved %}
+      <div style="margin-top:0.6rem; display:inline-flex; align-items:center; gap:0.5rem; background:rgba(255,193,7,0.2); border:1px solid rgba(255,193,7,0.5); border-radius:999px; padding:0.3rem 0.85rem; font-size:0.82rem; color:#ffd54f;">
+        Pending approval — you can browse jobs but cannot accept until approved.
+      </div>
+      {% else %}
+      <div style="margin-top:0.6rem; display:inline-flex; align-items:center; gap:0.5rem; background:rgba(25,135,84,0.2); border:1px solid rgba(25,135,84,0.4); border-radius:999px; padding:0.3rem 0.85rem; font-size:0.82rem; color:#6ee08a;">
+        Active Runner
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Quick stats -->
+    <div style="display:flex; gap:1.5rem; flex-wrap:wrap;">
+      <div style="text-align:center;">
+        <div style="font-size:1.6rem; font-weight:800; color:var(--orange);">${{ "%.2f"|format(runner.total_earnings) }}</div>
+        <div style="font-size:0.78rem; color:rgba(255,255,255,0.55); text-transform:uppercase; letter-spacing:0.05em;">Total Earned</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:1.6rem; font-weight:800; color:var(--white);">{{ runner.total_deliveries }}</div>
+        <div style="font-size:0.78rem; color:rgba(255,255,255,0.55); text-transform:uppercase; letter-spacing:0.05em;">Deliveries</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:1.6rem; font-weight:800; color:var(--white);">{{ active|length }}</div>
+        <div style="font-size:0.78rem; color:rgba(255,255,255,0.55); text-transform:uppercase; letter-spacing:0.05em;">Active Now</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section style="padding-bottom:4rem;">
+  <div class="container">
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('available', this)">
+        Available Jobs
+        {% if available %}
+        <span style="background:var(--orange); color:white; border-radius:999px; padding:0.1em 0.55em; font-size:0.75rem; margin-left:0.3rem;">{{ available|length }}</span>
+        {% endif %}
+      </button>
+      <button class="tab-btn" onclick="switchTab('active', this)">
+        My Active Jobs
+        {% if active %}
+        <span style="background:#0d6efd; color:white; border-radius:999px; padding:0.1em 0.55em; font-size:0.75rem; margin-left:0.3rem;">{{ active|length }}</span>
+        {% endif %}
+      </button>
+      <button class="tab-btn" onclick="switchTab('completed', this)">
+        Completed
+        {% if completed %}
+        <span style="background:#198754; color:white; border-radius:999px; padding:0.1em 0.55em; font-size:0.75rem; margin-left:0.3rem;">{{ completed|length }}</span>
+        {% endif %}
+      </button>
+    </div>
+
+    <!-- ── Available Jobs ──────────────────────────────────── -->
+    <div class="tab-panel active" id="tab-available">
+      {% if available %}
+        {% for order in available %}
+        <div class="job-card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
+            <div>
+              <h4 style="display:flex; align-items:center; gap:0.5rem;">
+                {{ order.item_title }}
+                {% if order.heavy_item %}
+                <span style="background:#fff3ee; color:var(--orange); border:1px solid var(--orange); border-radius:999px; font-size:0.72rem; padding:0.15em 0.6em; font-weight:700;">
+                  HEAVY · 2 RUNNERS
+                </span>
+                {% endif %}
+              </h4>
+              <div class="job-meta">
+                <span>📦 ${{ "%.2f"|format(order.item_price) }} item</span>
+                <span>📍 {{ order.distance_miles }} miles</span>
+                <span>🕐 {{ order.created_at.strftime('%b %d, %I:%M %p') }}</span>
+              </div>
+            </div>
+            <div class="payout-pill">
+              💰 Earn ${{ "%.2f"|format(order.runner_payout) }}
+              {% if order.heavy_item %}<span style="font-size:0.72rem; opacity:0.75;">(split 2 runners)</span>{% endif %}
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; font-size:0.85rem; color:var(--gray-mid); margin:0.5rem 0;">
+            <div>
+              <span style="color:#aaa;">Pickup:</span><br>
+              <strong style="color:var(--black);">{{ order.pickup_address or 'See FB listing' }}</strong>
+            </div>
+            <div>
+              <span style="color:#aaa;">Deliver to:</span><br>
+              <strong style="color:var(--black);">{{ order.delivery_address }}</strong>
+            </div>
+          </div>
+
+          <div style="margin:0.5rem 0;">
+            <a href="{{ order.fb_link }}" target="_blank" rel="noopener"
+               style="font-size:0.8rem; color:#1a4bcc; word-break:break-all;">
+              🔗 View FB Listing
+            </a>
+          </div>
+
+          {% if runner.is_approved %}
+          <form method="post" action="/runner/accept/{{ order.id }}" class="job-actions">
+            <button type="submit" class="btn btn-primary btn-sm">Accept Job</button>
+          </form>
+          {% else %}
+          <div class="alert alert-warning mt-2" style="margin-bottom:0; font-size:0.85rem;">
+            Your account is pending approval. Check back soon!
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-icon">📭</div>
+          <h3>No available jobs right now</h3>
+          <p>New jobs appear here once buyers place and pay for orders. Check back soon!</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- ── Active Jobs ─────────────────────────────────────── -->
+    <div class="tab-panel" id="tab-active">
+      {% if active %}
+        {% for order in active %}
+        <div class="job-card" style="border-left-color: {% if order.status == 'picked_up' %}#fd7e14{% else %}#0d6efd{% endif %};">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
+            <div>
+              <h4 style="display:flex; align-items:center; gap:0.5rem;">
+                {{ order.item_title }}
+                {% if order.heavy_item %}
+                <span style="background:#fff3ee; color:var(--orange); border:1px solid var(--orange); border-radius:999px; font-size:0.72rem; padding:0.15em 0.6em; font-weight:700;">
+                  HEAVY
+                </span>
+                {% endif %}
+              </h4>
+              <div class="job-meta">
+                <span>📦 ${{ "%.2f"|format(order.item_price) }}</span>
+                <span>📍 {{ order.distance_miles }} mi</span>
+                <span>📞 {{ order.buyer_phone or 'No phone' }}</span>
+              </div>
+            </div>
+            <span class="badge badge-{{ order.status }}">
+              {{ status_labels.get(order.status, order.status) }}
+            </span>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; font-size:0.85rem; color:var(--gray-mid); margin:0.75rem 0;">
+            <div>
+              <span style="color:#aaa;">Pickup:</span><br>
+              <strong style="color:var(--black);">{{ order.pickup_address or 'See FB listing' }}</strong>
+            </div>
+            <div>
+              <span style="color:#aaa;">Deliver to:</span><br>
+              <strong style="color:var(--black);">{{ order.delivery_address }}</strong>
+            </div>
+          </div>
+
+          <div style="font-size:0.85rem; color:var(--gray-mid); margin-bottom:0.75rem;">
+            <strong style="color:var(--black);">Buyer:</strong> {{ order.buyer_name }}
+            {% if order.buyer_phone %} &nbsp;·&nbsp; {{ order.buyer_phone }}{% endif %}
+          </div>
+
+          <div class="job-actions">
+            <a href="{{ order.fb_link }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">🔗 FB Listing</a>
+
+            {% if order.status == 'accepted' %}
+            <form method="post" action="/runner/pickup/{{ order.id }}" style="margin:0;">
+              <button type="submit" class="btn btn-dark btn-sm">📦 Mark as Picked Up</button>
+            </form>
+            {% elif order.status == 'picked_up' %}
+            <form method="post" action="/runner/deliver/{{ order.id }}" style="margin:0;">
+              <button type="submit" class="btn btn-primary btn-sm">🏠 Mark as Delivered</button>
+            </form>
+            {% endif %}
+          </div>
+
+          <div class="payout-pill mt-2">
+            💰 Payout upon delivery: ${{ "%.2f"|format(order.runner_payout) }}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-icon">🚗</div>
+          <h3>No active deliveries</h3>
+          <p>Jobs you accept will appear here. Head to "Available Jobs" to get started.</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- ── Completed Jobs ──────────────────────────────────── -->
+    <div class="tab-panel" id="tab-completed">
+      {% if completed %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Distance</th>
+              <th>Delivered</th>
+              <th>Payout</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for order in completed %}
+            <tr>
+              <td>
+                <strong>{{ order.item_title }}</strong>
+                {% if order.heavy_item %}
+                <span style="background:#fff3ee; color:var(--orange); border:1px solid var(--orange); border-radius:999px; font-size:0.7rem; padding:0.1em 0.5em; font-weight:700; margin-left:0.4rem;">HEAVY</span>
+                {% endif %}
+              </td>
+              <td>{{ order.distance_miles }} mi</td>
+              <td style="color:var(--gray-mid); font-size:0.85rem;">{{ order.updated_at.strftime('%b %d, %Y') }}</td>
+              <td><strong style="color:#198754;">${{ "%.2f"|format(order.runner_payout) }}</strong></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Earnings summary -->
+      <div style="margin-top:1.5rem; background:var(--orange-light); border-radius:var(--radius); padding:1.25rem 1.5rem; border-left:4px solid var(--orange); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+        <div>
+          <div style="font-size:0.8rem; color:var(--gray-mid); text-transform:uppercase; letter-spacing:0.05em;">Total Career Earnings</div>
+          <div style="font-size:2rem; font-weight:800; color:var(--orange);">${{ "%.2f"|format(runner.total_earnings) }}</div>
+        </div>
+        <div style="font-size:0.9rem; color:var(--gray-dark);">
+          {{ runner.total_deliveries }} deliveries completed
+        </div>
+      </div>
+
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-icon">🏆</div>
+          <h3>No completed deliveries yet</h3>
+          <p>Accept your first job and start earning!</p>
+          <button class="btn btn-primary mt-3" onclick="switchTab('available', document.querySelectorAll('.tab-btn')[0])">
+            View Available Jobs
+          </button>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><span>GrabIt</span> &copy; 2024 &nbsp;·&nbsp; Bethesda &amp; DC Area</p>
+  </div>
+</footer>
+
+<script>
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  // Auto-open tab from URL hash
+  const hash = window.location.hash.replace('#', '');
+  if (hash === 'active' || hash === 'completed') {
+    const idx = hash === 'active' ? 1 : 2;
+    switchTab(hash, document.querySelectorAll('.tab-btn')[idx]);
+  }
+</script>
+
+</body>
+</html>

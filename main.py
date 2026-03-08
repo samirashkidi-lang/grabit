@@ -8,15 +8,23 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional
 import os
+import secrets
 import stripe
 
-from database import init_db, get_db, Order, Runner
+from database import init_db, get_db, Order, Runner, RunnerSession
 from config import (
     APP_NAME, APP_URL, SECRET_KEY,
     STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY,
     STRIPE_WEBHOOK_SECRET, MIN_ITEM_PRICE, MAX_DELIVERY_MILES,
     calculate_order_totals, FB_APP_ID, FB_APP_SECRET
 )
+
+try:
+    from passlib.context import CryptContext
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    PASSLIB_AVAILABLE = True
+except ImportError:
+    PASSLIB_AVAILABLE = False
 
 # ── App setup ──────────────────────────────────────────────────────────────────
 app = FastAPI(title=APP_NAME)
@@ -68,6 +76,38 @@ def tmpl(name: str, request: Request, **ctx):
     ctx.setdefault("fb_user", request.session.get("fb_user"))
     ctx.setdefault("fb_login_enabled", bool(FB_APP_ID and FB_APP_SECRET))
     return templates.TemplateResponse(name, {"request": request, **ctx})
+
+
+def hash_password(password: str) -> str:
+    if PASSLIB_AVAILABLE:
+        return pwd_context.hash(password)
+    # Fallback: store a salted sha256 (not production-grade, but works without passlib)
+    import hashlib, os as _os
+    salt = _os.urandom(16).hex()
+    h = hashlib.sha256((salt + password).encode()).hexdigest()
+    return f"sha256${salt}${h}"
+
+
+def verify_password(password: str, hashed: str) -> bool:
+    if PASSLIB_AVAILABLE:
+        return pwd_context.verify(password, hashed)
+    # Fallback sha256 verifier
+    import hashlib
+    try:
+        _, salt, h = hashed.split("$")
+        return hashlib.sha256((salt + password).encode()).hexdigest() == h
+    except Exception:
+        return False
+
+
+def get_runner_from_cookie(request: Request, db: Session) -> Optional[Runner]:
+    token = request.cookies.get("runner_token")
+    if not token:
+        return None
+    session = db.query(RunnerSession).filter(RunnerSession.token == token).first()
+    if not session:
+        return None
+    return db.query(Runner).filter(Runner.id == session.runner_id).first()
 
 
 # ── Home ───────────────────────────────────────────────────────────────────────
@@ -130,8 +170,11 @@ async def create_order(
     buyer_phone: str = Form(""),
     delivery_address: str = Form(...),
     pickup_address: str = Form(""),
+    heavy_item: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
+    heavy = heavy_item == "on"
+
     # Validate
     errors = []
     if item_price < MIN_ITEM_PRICE:
@@ -149,10 +192,10 @@ async def create_order(
                         "item_price": item_price, "distance_miles": distance_miles,
                         "buyer_name": buyer_name, "buyer_email": buyer_email,
                         "buyer_phone": buyer_phone, "delivery_address": delivery_address,
-                        "pickup_address": pickup_address,
+                        "pickup_address": pickup_address, "heavy_item": heavy,
                     })
 
-    totals = calculate_order_totals(item_price, distance_miles)
+    totals = calculate_order_totals(item_price, distance_miles, heavy_item=heavy)
     if not totals:
         errors.append("Unable to calculate fees. Please check your inputs.")
         return tmpl("order.html", request, errors=errors,
@@ -173,6 +216,8 @@ async def create_order(
         total=totals["total"],
         runner_payout=totals["runner_payout"],
         platform_profit=totals["platform_profit"],
+        heavy_item=totals["heavy_item"],
+        runners_needed=totals["runners_needed"],
         status="pending",
         payment_status="unpaid",
     )
@@ -185,12 +230,16 @@ async def create_order(
 
 # ── Quote API (AJAX) ────────────────────────────────────────────────────────────
 @app.get("/api/quote")
-async def get_quote(item_price: float = 0, distance_miles: float = 0):
+async def get_quote(
+    item_price: float = 0,
+    distance_miles: float = 0,
+    heavy_item: bool = False,
+):
     if item_price < MIN_ITEM_PRICE:
         return JSONResponse({"error": f"Minimum item price is ${MIN_ITEM_PRICE:.0f}"}, status_code=400)
     if distance_miles <= 0 or distance_miles > MAX_DELIVERY_MILES:
         return JSONResponse({"error": f"Distance must be 0.1–{MAX_DELIVERY_MILES} miles"}, status_code=400)
-    totals = calculate_order_totals(item_price, distance_miles)
+    totals = calculate_order_totals(item_price, distance_miles, heavy_item=heavy_item)
     if not totals:
         return JSONResponse({"error": "Unable to calculate"}, status_code=400)
     return JSONResponse(totals)
@@ -309,9 +358,109 @@ async def confirmation(
     return tmpl("confirmation.html", request, order=order, runner=runner)
 
 
-# ── Runner dashboard ───────────────────────────────────────────────────────────
+# ── Public runner landing (redirect to login or dashboard) ─────────────────────
 @app.get("/runner", response_class=HTMLResponse)
 async def runner_page(request: Request, db: Session = Depends(get_db)):
+    current_runner = get_runner_from_cookie(request, db)
+    if current_runner:
+        return RedirectResponse(url="/runner/dashboard", status_code=302)
+    return RedirectResponse(url="/runner/login", status_code=302)
+
+
+# ── Runner registration ────────────────────────────────────────────────────────
+@app.get("/runner/register", response_class=HTMLResponse)
+async def runner_register_page(request: Request):
+    return tmpl("runner_register.html", request)
+
+
+@app.post("/runner/register")
+async def runner_register(
+    request: Request,
+    name: str = Form(...),
+    email: str = Form(...),
+    phone: str = Form(""),
+    password: str = Form(...),
+    bio: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    errors = []
+    if len(password) < 6:
+        errors.append("Password must be at least 6 characters.")
+    existing = db.query(Runner).filter(Runner.email == email).first()
+    if existing:
+        errors.append("An account with that email already exists.")
+
+    if errors:
+        return tmpl("runner_register.html", request, errors=errors,
+                    form={"name": name, "email": email, "phone": phone, "bio": bio})
+
+    runner = Runner(
+        name=name,
+        email=email,
+        phone=phone,
+        password_hash=hash_password(password),
+        bio=bio,
+        is_active=True,
+        is_approved=False,  # admin approval required
+    )
+    db.add(runner)
+    db.commit()
+    return RedirectResponse(url="/runner/login?registered=1", status_code=302)
+
+
+# ── Runner login ───────────────────────────────────────────────────────────────
+@app.get("/runner/login", response_class=HTMLResponse)
+async def runner_login_page(request: Request, db: Session = Depends(get_db)):
+    # Already logged in?
+    current_runner = get_runner_from_cookie(request, db)
+    if current_runner:
+        return RedirectResponse(url="/runner/dashboard", status_code=302)
+    return tmpl("runner_login.html", request)
+
+
+@app.post("/runner/login")
+async def runner_login(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    runner = db.query(Runner).filter(Runner.email == email).first()
+    if not runner or not runner.password_hash or not verify_password(password, runner.password_hash):
+        return tmpl("runner_login.html", request,
+                    error="Invalid email or password.",
+                    form={"email": email})
+
+    # Create session token
+    token = secrets.token_urlsafe(32)
+    session_obj = RunnerSession(runner_id=runner.id, token=token)
+    db.add(session_obj)
+    db.commit()
+
+    response = RedirectResponse(url="/runner/dashboard", status_code=302)
+    response.set_cookie("runner_token", token, httponly=True, max_age=60 * 60 * 24 * 7)
+    return response
+
+
+# ── Runner logout ──────────────────────────────────────────────────────────────
+@app.get("/runner/logout")
+async def runner_logout(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get("runner_token")
+    if token:
+        db.query(RunnerSession).filter(RunnerSession.token == token).delete()
+        db.commit()
+    response = RedirectResponse(url="/runner/login", status_code=302)
+    response.delete_cookie("runner_token")
+    return response
+
+
+# ── Runner dashboard ───────────────────────────────────────────────────────────
+@app.get("/runner/dashboard", response_class=HTMLResponse)
+async def runner_dashboard(request: Request, db: Session = Depends(get_db)):
+    current_runner = get_runner_from_cookie(request, db)
+    if not current_runner:
+        return RedirectResponse(url="/runner/login", status_code=302)
+
     available = (
         db.query(Order)
         .filter(Order.payment_status == "paid", Order.status == "paid")
@@ -320,76 +469,117 @@ async def runner_page(request: Request, db: Session = Depends(get_db)):
     )
     active = (
         db.query(Order)
-        .filter(Order.status.in_(["accepted", "picked_up"]))
+        .filter(
+            Order.runner_id == current_runner.id,
+            Order.status.in_(["accepted", "picked_up"]),
+        )
         .order_by(Order.updated_at.desc())
         .all()
     )
-    runners = db.query(Runner).filter(Runner.is_active == True).all()
-    return tmpl("runner.html", request,
-                available=available, active=active, runners=runners)
+    completed = (
+        db.query(Order)
+        .filter(
+            Order.runner_id == current_runner.id,
+            Order.status == "delivered",
+        )
+        .order_by(Order.updated_at.desc())
+        .limit(20)
+        .all()
+    )
+
+    return tmpl("runner_dashboard.html", request,
+                runner=current_runner,
+                available=available,
+                active=active,
+                completed=completed)
 
 
+# ── Runner job actions (authenticated) ────────────────────────────────────────
 @app.post("/runner/accept/{order_id}")
 async def accept_order(
     order_id: str,
-    runner_id: str = Form(...),
+    request: Request,
+    runner_id: str = Form(None),
     db: Session = Depends(get_db),
 ):
+    # Support both cookie-authenticated runners and legacy runner_id form field
+    current_runner = get_runner_from_cookie(request, db)
+
+    if current_runner:
+        resolved_runner = current_runner
+    elif runner_id:
+        resolved_runner = db.query(Runner).filter(Runner.id == runner_id).first()
+        if not resolved_runner:
+            raise HTTPException(status_code=404, detail="Runner not found")
+    else:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order or order.status != "paid":
         raise HTTPException(status_code=400, detail="Order not available")
-    runner = db.query(Runner).filter(Runner.id == runner_id).first()
-    if not runner:
-        raise HTTPException(status_code=404, detail="Runner not found")
-    order.runner_id = runner_id
+
+    order.runner_id = resolved_runner.id
     order.status = "accepted"
     order.updated_at = datetime.utcnow()
     db.commit()
+
+    if current_runner:
+        return RedirectResponse(url="/runner/dashboard", status_code=302)
     return RedirectResponse(url="/runner", status_code=302)
 
 
 @app.post("/runner/pickup/{order_id}")
-async def mark_picked_up(order_id: str, db: Session = Depends(get_db)):
+async def mark_picked_up(
+    order_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order or order.status != "accepted":
         raise HTTPException(status_code=400, detail="Invalid status transition")
+
+    # Verify the logged-in runner owns this order (if cookie present)
+    current_runner = get_runner_from_cookie(request, db)
+    if current_runner and order.runner_id != current_runner.id:
+        raise HTTPException(status_code=403, detail="Not your order")
+
     order.status = "picked_up"
     order.updated_at = datetime.utcnow()
     db.commit()
+
+    if current_runner:
+        return RedirectResponse(url="/runner/dashboard", status_code=302)
     return RedirectResponse(url="/runner", status_code=302)
 
 
 @app.post("/runner/deliver/{order_id}")
-async def mark_delivered(order_id: str, db: Session = Depends(get_db)):
+async def mark_delivered(
+    order_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order or order.status != "picked_up":
         raise HTTPException(status_code=400, detail="Invalid status transition")
+
+    current_runner = get_runner_from_cookie(request, db)
+    if current_runner and order.runner_id != current_runner.id:
+        raise HTTPException(status_code=403, detail="Not your order")
+
     order.status = "delivered"
     order.updated_at = datetime.utcnow()
+
     # Credit runner earnings
     if order.runner_id:
         runner = db.query(Runner).filter(Runner.id == order.runner_id).first()
         if runner:
-            runner.total_earnings = round(runner.total_earnings + order.runner_payout, 2)
+            runner.total_earnings   = round(runner.total_earnings + order.runner_payout, 2)
+            runner.total_deliveries = runner.total_deliveries + 1
     db.commit()
+
+    if current_runner:
+        return RedirectResponse(url="/runner/dashboard", status_code=302)
     return RedirectResponse(url="/runner", status_code=302)
-
-
-# ── Runner registration ────────────────────────────────────────────────────────
-@app.post("/runner/register")
-async def register_runner(
-    name: str = Form(...),
-    email: str = Form(...),
-    phone: str = Form(""),
-    db: Session = Depends(get_db),
-):
-    existing = db.query(Runner).filter(Runner.email == email).first()
-    if existing:
-        return RedirectResponse(url="/runner?error=email_exists", status_code=302)
-    runner = Runner(name=name, email=email, phone=phone)
-    db.add(runner)
-    db.commit()
-    return RedirectResponse(url="/runner?registered=1", status_code=302)
 
 
 # ── Admin ──────────────────────────────────────────────────────────────────────
@@ -434,5 +624,16 @@ async def update_order_status(
         raise HTTPException(status_code=400, detail="Invalid status")
     order.status = status
     order.updated_at = datetime.utcnow()
+    db.commit()
+    return RedirectResponse(url="/admin", status_code=302)
+
+
+# ── Admin: approve runner ──────────────────────────────────────────────────────
+@app.post("/admin/runners/{runner_id}/approve")
+async def approve_runner(runner_id: str, db: Session = Depends(get_db)):
+    runner = db.query(Runner).filter(Runner.id == runner_id).first()
+    if not runner:
+        raise HTTPException(status_code=404)
+    runner.is_approved = True
     db.commit()
     return RedirectResponse(url="/admin", status_code=302)

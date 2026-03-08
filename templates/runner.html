@@ -3,241 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Runner Dashboard — GrabIt</title>
+  <title>Runner — GrabIt</title>
+  <meta http-equiv="refresh" content="0; url=/runner/login">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-<!-- Navbar -->
 <nav class="navbar">
   <div class="container navbar-inner">
     <a href="/" class="navbar-brand">Grab<span>It</span></a>
     <div class="navbar-links">
       <a href="/">Home</a>
       <a href="/order">Place Order</a>
-      <a href="/admin" style="opacity:0.5;">Admin</a>
     </div>
   </div>
 </nav>
 
-<!-- Runner Header -->
-<div class="runner-header">
-  <div class="container">
-    <h1>🏃 Runner Dashboard</h1>
-    <p style="color:rgba(255,255,255,0.65); margin-top:0.4rem;">
-      Accept jobs, pick up items, and earn money in your area.
-    </p>
-  </div>
-</div>
-
-<section style="padding-bottom:4rem;">
-  <div class="container">
-
-    {% set url_params = request.query_params %}
-    {% if url_params.get('registered') %}
-    <div class="alert alert-success">You're registered! You can now accept pickup jobs below.</div>
-    {% endif %}
-    {% if url_params.get('error') == 'email_exists' %}
-    <div class="alert alert-warning">That email is already registered. You're good to go — just accept a job below!</div>
-    {% endif %}
-
-    <!-- Tabs -->
-    <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('available', this)">
-        Available Jobs
-        {% if available %}
-        <span style="background:var(--orange); color:white; border-radius:999px; padding:0.1em 0.55em; font-size:0.75rem; margin-left:0.3rem;">{{ available|length }}</span>
-        {% endif %}
-      </button>
-      <button class="tab-btn" onclick="switchTab('active', this)">
-        Active Deliveries
-        {% if active %}
-        <span style="background:#0d6efd; color:white; border-radius:999px; padding:0.1em 0.55em; font-size:0.75rem; margin-left:0.3rem;">{{ active|length }}</span>
-        {% endif %}
-      </button>
-      <button class="tab-btn" onclick="switchTab('register', this)">
-        🤝 Become a Runner
-      </button>
+<section class="section-pad">
+  <div class="container text-center" style="padding-top:4rem;">
+    <div style="font-size:3rem; margin-bottom:1rem;">🏃</div>
+    <h2>Runner Portal</h2>
+    <p style="margin-bottom:2rem;">Please log in or register to access the runner dashboard.</p>
+    <div style="display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+      <a href="/runner/login" class="btn btn-primary">Log In</a>
+      <a href="/runner/register" class="btn btn-outline">Register as a Runner</a>
     </div>
-
-    <!-- Available Jobs Tab -->
-    <div class="tab-panel active" id="tab-available">
-      {% if available %}
-        {% for order in available %}
-        <div class="job-card">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
-            <div>
-              <h4>{{ order.item_title }}</h4>
-              <div class="job-meta">
-                <span>📦 ${{ "%.2f"|format(order.item_price) }} item</span>
-                <span>📍 {{ order.distance_miles }} miles</span>
-                <span>🕐 {{ order.created_at.strftime('%b %d, %I:%M %p') }}</span>
-              </div>
-            </div>
-            <div class="payout-pill">
-              💰 Earn ${{ "%.2f"|format(order.runner_payout) }}
-            </div>
-          </div>
-
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; font-size:0.85rem; color:var(--gray-mid); margin:0.5rem 0;">
-            <div>
-              <span style="color:#aaa;">Pickup:</span><br>
-              <strong style="color:var(--black);">{{ order.pickup_address or 'See FB listing' }}</strong>
-            </div>
-            <div>
-              <span style="color:#aaa;">Deliver to:</span><br>
-              <strong style="color:var(--black);">{{ order.delivery_address }}</strong>
-            </div>
-          </div>
-
-          <div style="margin:0.5rem 0;">
-            <a href="{{ order.fb_link }}" target="_blank" rel="noopener"
-               style="font-size:0.8rem; color:#1a4bcc; word-break:break-all;">
-              🔗 View FB Listing
-            </a>
-          </div>
-
-          {% if runners %}
-          <form method="post" action="/runner/accept/{{ order.id }}" class="job-actions">
-            <select name="runner_id" class="form-control" style="flex:1; max-width:250px; padding:0.5rem 0.75rem; font-size:0.875rem;" required>
-              <option value="">Select runner...</option>
-              {% for r in runners %}
-              <option value="{{ r.id }}">{{ r.name }} ({{ r.email }})</option>
-              {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-primary btn-sm">✅ Accept Job</button>
-          </form>
-          {% else %}
-          <div class="alert alert-info mt-2" style="margin-bottom:0;">
-            No runners registered yet.
-            <a href="#" onclick="switchTab('register', document.querySelectorAll('.tab-btn')[2])">Register as a runner</a> to accept this job.
-          </div>
-          {% endif %}
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="empty-state">
-          <div class="empty-icon">📭</div>
-          <h3>No available jobs right now</h3>
-          <p>New jobs will appear here once buyers place and pay for orders.</p>
-          <a href="/order" class="btn btn-outline mt-3">See how it works</a>
-        </div>
-      {% endif %}
-    </div>
-
-    <!-- Active Deliveries Tab -->
-    <div class="tab-panel" id="tab-active">
-      {% if active %}
-        {% for order in active %}
-        {% set r = runners|selectattr('id','equalto', order.runner_id)|first if order.runner_id else None %}
-        <div class="job-card" style="border-left-color: {% if order.status == 'picked_up' %}#fd7e14{% else %}#0d6efd{% endif %};">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
-            <div>
-              <h4>{{ order.item_title }}</h4>
-              <div class="job-meta">
-                <span>📦 ${{ "%.2f"|format(order.item_price) }}</span>
-                <span>📍 {{ order.distance_miles }} mi</span>
-                {% if r %}<span>🏃 {{ r.name }}</span>{% endif %}
-              </div>
-            </div>
-            <span class="badge badge-{{ order.status }}">
-              {{ status_labels.get(order.status, order.status) }}
-            </span>
-          </div>
-
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; font-size:0.85rem; color:var(--gray-mid); margin:0.75rem 0;">
-            <div>
-              <span style="color:#aaa;">Pickup:</span><br>
-              <strong style="color:var(--black);">{{ order.pickup_address or 'See FB listing' }}</strong>
-            </div>
-            <div>
-              <span style="color:#aaa;">Deliver to:</span><br>
-              <strong style="color:var(--black);">{{ order.delivery_address }}</strong>
-            </div>
-          </div>
-
-          <div class="job-actions">
-            <a href="{{ order.fb_link }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">🔗 FB Listing</a>
-
-            {% if order.status == 'accepted' %}
-            <form method="post" action="/runner/pickup/{{ order.id }}" style="margin:0;">
-              <button type="submit" class="btn btn-dark btn-sm">📦 Mark as Picked Up</button>
-            </form>
-            {% elif order.status == 'picked_up' %}
-            <form method="post" action="/runner/deliver/{{ order.id }}" style="margin:0;">
-              <button type="submit" class="btn btn-primary btn-sm">🏠 Mark as Delivered</button>
-            </form>
-            {% endif %}
-          </div>
-
-          <div class="payout-pill mt-2">
-            💰 Payout upon delivery: ${{ "%.2f"|format(order.runner_payout) }}
-          </div>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="empty-state">
-          <div class="empty-icon">🚗</div>
-          <h3>No active deliveries</h3>
-          <p>Jobs you accept will appear here. Head to "Available Jobs" to get started.</p>
-        </div>
-      {% endif %}
-    </div>
-
-    <!-- Register Tab -->
-    <div class="tab-panel" id="tab-register">
-      <div style="max-width:480px;">
-        <div class="register-panel">
-          <h3>Join the GrabIt Runner Team</h3>
-          <p style="font-size:0.9rem; color:var(--gray-dark); margin-bottom:1.25rem;">
-            Earn $6–$20 per delivery in the Bethesda / DC area.
-            Set your own hours, accept jobs when you want.
-          </p>
-
-          <form method="post" action="/runner/register">
-            <div class="form-group">
-              <label class="form-label" for="r-name">Full Name <span class="required">*</span></label>
-              <input type="text" id="r-name" name="name" class="form-control" placeholder="Alex Johnson" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="r-email">Email <span class="required">*</span></label>
-              <input type="email" id="r-email" name="email" class="form-control" placeholder="alex@example.com" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="r-phone">Phone</label>
-              <input type="tel" id="r-phone" name="phone" class="form-control" placeholder="(301) 555-0100">
-            </div>
-            <button type="submit" class="btn btn-primary btn-full">🤝 Register as Runner</button>
-          </form>
-        </div>
-
-        {% if runners %}
-        <div style="margin-top:2rem;">
-          <h4 style="font-size:0.9rem; color:var(--gray-mid); margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.05em;">Registered Runners</h4>
-          {% for r in runners %}
-          <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0; border-bottom:1px solid #f0f0f0; font-size:0.875rem;">
-            <div style="display:flex; align-items:center; gap:0.5rem;">
-              <div style="width:32px; height:32px; border-radius:50%; background:var(--orange); display:flex; align-items:center; justify-content:center; font-size:0.85rem; color:white; font-weight:700;">
-                {{ r.name[0].upper() }}
-              </div>
-              <div>
-                <div style="font-weight:600;">{{ r.name }}</div>
-                <div style="color:var(--gray-mid); font-size:0.8rem;">{{ r.email }}</div>
-              </div>
-            </div>
-            <div style="text-align:right;">
-              <div style="font-weight:700; color:#198754;">${{ "%.2f"|format(r.total_earnings) }}</div>
-              <div style="font-size:0.75rem; color:#aaa;">total earned</div>
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-        {% endif %}
-      </div>
-    </div>
-
   </div>
 </section>
 
@@ -246,21 +38,6 @@
     <p><span>GrabIt</span> &copy; 2024 &nbsp;·&nbsp; Bethesda &amp; DC Area</p>
   </div>
 </footer>
-
-<script>
-  function switchTab(name, btn) {
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('tab-' + name).classList.add('active');
-    btn.classList.add('active');
-  }
-
-  // Auto-open register tab if URL says so
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('tab') === 'register') {
-    switchTab('register', document.querySelectorAll('.tab-btn')[2]);
-  }
-</script>
 
 </body>
 </html>

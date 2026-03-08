@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Become a Runner — GrabIt</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a href="/" class="navbar-brand">Grab<span>It</span></a>
+    <div class="navbar-links">
+      <a href="/">Home</a>
+      <a href="/order">Place Order</a>
+      <a href="/runner/login">Runner Login</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<div class="page-hero">
+  <div class="container">
+    <h1>Become a Runner</h1>
+    <p>Earn $6–$40 per delivery. Set your own hours. Work in the Bethesda / DC area.</p>
+  </div>
+</div>
+
+<section class="section-pad">
+  <div class="container">
+    <div style="max-width:520px; margin:0 auto;">
+
+      {% if errors %}
+      <div style="margin-bottom:1.5rem;">
+        {% for e in errors %}
+        <div class="alert alert-danger">{{ e }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="card">
+        <div class="card-header orange">Create Your Runner Account</div>
+        <div class="card-body">
+
+          <form method="post" action="/runner/register">
+
+            <div class="form-group">
+              <label class="form-label" for="name">Full Name <span class="required">*</span></label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                class="form-control"
+                placeholder="Alex Johnson"
+                value="{{ form.name if form else '' }}"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="email">Email Address <span class="required">*</span></label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                class="form-control"
+                placeholder="alex@example.com"
+                value="{{ form.email if form else '' }}"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="phone">Phone Number</label>
+              <input
+                type="tel"
+                id="phone"
+                name="phone"
+                class="form-control"
+                placeholder="(301) 555-0100"
+                value="{{ form.phone if form else '' }}"
+              >
+              <span class="form-hint">Used to coordinate pickups and deliveries</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="password">Password <span class="required">*</span></label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                class="form-control"
+                placeholder="At least 6 characters"
+                required
+                minlength="6"
+              >
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="bio">Short Bio</label>
+              <textarea
+                id="bio"
+                name="bio"
+                class="form-control"
+                rows="3"
+                placeholder="Tell us a bit about yourself — vehicle type, availability, area you cover..."
+                style="resize:vertical;"
+              >{{ form.bio if form else '' }}</textarea>
+              <span class="form-hint">Optional but helpful for getting approved faster</span>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full btn-lg">
+              Apply to Become a Runner
+            </button>
+
+            <p class="text-center text-sm text-muted mt-2">
+              Your account will be reviewed before you can accept jobs.
+            </p>
+          </form>
+
+        </div>
+      </div>
+
+      <!-- Perks -->
+      <div style="margin-top:2rem; display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+        <div style="background:var(--orange-light); border-radius:var(--radius); padding:1.25rem; border-left:4px solid var(--orange);">
+          <div style="font-size:1.5rem; margin-bottom:0.5rem;">💰</div>
+          <strong style="font-size:0.95rem;">Earn $6 – $40</strong>
+          <p style="font-size:0.82rem; margin:0.25rem 0 0;">Per delivery, based on distance and item type.</p>
+        </div>
+        <div style="background:var(--orange-light); border-radius:var(--radius); padding:1.25rem; border-left:4px solid var(--orange);">
+          <div style="font-size:1.5rem; margin-bottom:0.5rem;">🕐</div>
+          <strong style="font-size:0.95rem;">Your Schedule</strong>
+          <p style="font-size:0.82rem; margin:0.25rem 0 0;">Accept jobs when it suits you. No minimum hours.</p>
+        </div>
+        <div style="background:var(--orange-light); border-radius:var(--radius); padding:1.25rem; border-left:4px solid var(--orange);">
+          <div style="font-size:1.5rem; margin-bottom:0.5rem;">📦</div>
+          <strong style="font-size:0.95rem;">Heavy Items</strong>
+          <p style="font-size:0.82rem; margin:0.25rem 0 0;">Team up for furniture — payout doubles, split between 2 runners.</p>
+        </div>
+        <div style="background:var(--orange-light); border-radius:var(--radius); padding:1.25rem; border-left:4px solid var(--orange);">
+          <div style="font-size:1.5rem; margin-bottom:0.5rem;">📍</div>
+          <strong style="font-size:0.95rem;">Local Area</strong>
+          <p style="font-size:0.82rem; margin:0.25rem 0 0;">Deliveries within 15 miles — Bethesda &amp; DC metro.</p>
+        </div>
+      </div>
+
+      <p class="text-center text-sm text-muted mt-3">
+        Already have an account? <a href="/runner/login">Log in here</a>
+      </p>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><span>GrabIt</span> &copy; 2024 &nbsp;·&nbsp; Bethesda &amp; DC Area</p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -35,6 +35,10 @@ class Order(Base):
     runner_payout     = Column(Float, nullable=False)
     platform_profit   = Column(Float, nullable=False)
 
+    # Heavy item option
+    heavy_item        = Column(Boolean, default=False)
+    runners_needed    = Column(Integer, default=1)
+
     # Status & assignment
     # pending → accepted → picked_up → delivered
     status            = Column(String, default="pending")
@@ -51,13 +55,26 @@ class Order(Base):
 class Runner(Base):
     __tablename__ = "runners"
 
-    id              = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    name            = Column(String, nullable=False)
-    email           = Column(String, unique=True, index=True)
-    phone           = Column(String, nullable=True)
-    is_active       = Column(Boolean, default=True)
-    total_earnings  = Column(Float, default=0.0)
-    created_at      = Column(DateTime, default=datetime.utcnow)
+    id               = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name             = Column(String, nullable=False)
+    email            = Column(String, unique=True, index=True)
+    phone            = Column(String, nullable=True)
+    password_hash    = Column(String, nullable=True)
+    bio              = Column(Text, nullable=True)
+    is_active        = Column(Boolean, default=True)
+    is_approved      = Column(Boolean, default=False)
+    total_earnings   = Column(Float, default=0.0)
+    total_deliveries = Column(Integer, default=0)
+    created_at       = Column(DateTime, default=datetime.utcnow)
+
+
+class RunnerSession(Base):
+    __tablename__ = "runner_sessions"
+
+    id         = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    runner_id  = Column(String, nullable=False, index=True)
+    token      = Column(String, nullable=False, unique=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 def init_db():

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GrabIt — Someone will grab it for you</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a href="/" class="navbar-brand">Grab<span>It</span></a>
+    <div class="navbar-links">
+      <a href="/#how-it-works">How It Works</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/runner">Become a Runner</a>
+      {% if fb_user %}
+        <span style="display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;color:rgba(255,255,255,0.8);">
+          {% if fb_user.picture %}<img src="{{ fb_user.picture }}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;" alt="">{% endif %}
+          {{ fb_user.name.split()[0] }}
+        </span>
+        <a href="/auth/logout" class="btn btn-outline btn-sm">Log Out</a>
+      {% elif fb_login_enabled %}
+        <a href="/auth/facebook" class="btn btn-facebook btn-sm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="white" style="vertical-align:middle;margin-right:5px;"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          Login with Facebook
+        </a>
+      {% endif %}
+      <a href="/order" class="btn btn-primary btn-sm">Order Now</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container hero-content">
+    <div class="hero-badge">🚀 Now serving Bethesda &amp; DC area</div>
+    <h1>Someone will <span>grab it</span><br>for you</h1>
+    <p class="tagline">
+      Found something great on Facebook Marketplace?
+      Paste the link, pay once, and a runner picks it up and delivers it to your door.
+    </p>
+    <div class="hero-actions">
+      <a href="/order" class="btn btn-primary btn-lg">Grab Something Now</a>
+      <a href="/#how-it-works" class="btn btn-outline btn-lg">How It Works</a>
+    </div>
+    <p style="color:rgba(255,255,255,0.4); font-size:0.85rem; margin-top:1.5rem;">
+      Minimum item price $80 &nbsp;·&nbsp; Up to 15 miles &nbsp;·&nbsp; Bethesda / DC
+    </p>
+  </div>
+</section>
+
+<!-- How It Works -->
+<section class="how-it-works" id="how-it-works">
+  <div class="container">
+    <div class="section-title">
+      <h2>How <span class="text-orange">GrabIt</span> works</h2>
+      <p>Three easy steps from listing to doorstep</p>
+    </div>
+
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-icon">📋</div>
+        <div class="step-number">Step 1</div>
+        <h3>Paste the Link</h3>
+        <p>Copy any Facebook Marketplace listing URL, enter the item price and your delivery address, and get an instant quote.</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-icon">💳</div>
+        <div class="step-number">Step 2</div>
+        <h3>Pay &amp; Confirm</h3>
+        <p>Review the delivery fee and service charge, then pay securely via Stripe. Your runner is notified instantly.</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-icon">🏃</div>
+        <div class="step-number">Step 3</div>
+        <h3>We Grab It</h3>
+        <p>A local runner accepts your job, picks up the item from the seller, and delivers it straight to you.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section class="pricing-strip" id="pricing">
+  <div class="container">
+    <div class="section-title">
+      <h2>Simple, transparent <span class="text-orange">pricing</span></h2>
+      <p>Flat delivery fee based on distance, plus a 5% service fee on the item price</p>
+    </div>
+
+    <div class="pricing-cards">
+      <div class="pricing-card">
+        <div class="range">Under 5 miles</div>
+        <div class="fee">$10</div>
+        <div class="sub">delivery fee</div>
+      </div>
+      <div class="pricing-card">
+        <div class="range">5 – 10 miles</div>
+        <div class="fee">$20</div>
+        <div class="sub">delivery fee</div>
+      </div>
+      <div class="pricing-card">
+        <div class="range">10 – 15 miles</div>
+        <div class="fee">$30</div>
+        <div class="sub">delivery fee</div>
+      </div>
+    </div>
+
+    <p class="text-center mt-3 text-sm text-muted">
+      + 5% service fee on item price &nbsp;·&nbsp; Minimum item price: $80 &nbsp;·&nbsp; Max radius: 15 miles
+    </p>
+
+    <div class="text-center mt-4">
+      <a href="/order" class="btn btn-primary btn-lg">Get a Free Quote</a>
+    </div>
+  </div>
+</section>
+
+<!-- Why GrabIt -->
+<section style="padding: 5rem 0; background: var(--white);">
+  <div class="container">
+    <div class="section-title">
+      <h2>Why use <span class="text-orange">GrabIt</span>?</h2>
+    </div>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:1.5rem; margin-top:2rem;">
+      <div style="padding:1.5rem; border-radius:var(--radius); border:2px solid #f0f0f0;">
+        <div style="font-size:2rem; margin-bottom:0.75rem;">🔒</div>
+        <h3 style="font-size:1rem; margin-bottom:0.4rem;">Secure Payments</h3>
+        <p style="font-size:0.9rem;">All payments processed by Stripe. No cash exchanged with strangers.</p>
+      </div>
+      <div style="padding:1.5rem; border-radius:var(--radius); border:2px solid #f0f0f0;">
+        <div style="font-size:2rem; margin-bottom:0.75rem;">⚡</div>
+        <h3 style="font-size:1rem; margin-bottom:0.4rem;">Fast Pickup</h3>
+        <p style="font-size:0.9rem;">Local runners are notified immediately and typically pick up within hours.</p>
+      </div>
+      <div style="padding:1.5rem; border-radius:var(--radius); border:2px solid #f0f0f0;">
+        <div style="font-size:2rem; margin-bottom:0.75rem;">📍</div>
+        <h3 style="font-size:1rem; margin-bottom:0.4rem;">Local Runners</h3>
+        <p style="font-size:0.9rem;">Real people in your community earning fair pay for every delivery.</p>
+      </div>
+      <div style="padding:1.5rem; border-radius:var(--radius); border:2px solid #f0f0f0;">
+        <div style="font-size:2rem; margin-bottom:0.75rem;">💬</div>
+        <h3 style="font-size:1rem; margin-bottom:0.4rem;">No Strangers at Your Door</h3>
+        <p style="font-size:0.9rem;">Our vetted runners handle the seller interaction so you don't have to.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA Strip -->
+<section class="cta-strip">
+  <div class="container">
+    <h2>Ready to <span class="text-orange">grab</span> something?</h2>
+    <p>Paste your Facebook Marketplace link and get a quote in seconds.</p>
+    <a href="/order" class="btn btn-primary btn-lg">Start Your Order</a>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <p><span>GrabIt</span> &copy; 2024 &nbsp;·&nbsp; Bethesda &amp; DC Area &nbsp;·&nbsp;
+      <a href="/runner" style="color:rgba(255,255,255,0.5);">Become a Runner</a> &nbsp;·&nbsp;
+      <a href="/admin" style="color:rgba(255,255,255,0.3);">Admin</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

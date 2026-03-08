@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment — GrabIt</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a href="/" class="navbar-brand">Grab<span>It</span></a>
+    <div class="navbar-links">
+      <a href="/">Home</a>
+      <a href="/order">New Order</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Page Hero -->
+<div class="page-hero">
+  <div class="container">
+    <h1>💳 Complete Your Payment</h1>
+    <p>Review your order summary, then pay securely with Stripe.</p>
+  </div>
+</div>
+
+<section class="section-pad">
+  <div class="container">
+
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <div class="pay-layout">
+
+      <!-- Left: Payment form -->
+      <div>
+        <div class="card">
+          <div class="card-header orange">🔒 Secure Payment via Stripe</div>
+          <div class="card-body">
+
+            <p style="font-size:0.9rem; color:var(--gray-mid); margin-bottom:1.5rem;">
+              Your payment details are encrypted and processed securely by Stripe.
+              GrabIt never stores your card information.
+            </p>
+
+            <!-- Secure Stripe Redirect Button -->
+            <form method="post" action="/pay/{{ order.id }}/checkout" id="pay-form">
+              <div style="background:var(--orange-light); border:2px solid var(--orange); border-radius:var(--radius); padding:1.25rem; margin-bottom:1.5rem;">
+                <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.5rem;">
+                  <span style="font-size:1.5rem;">🛒</span>
+                  <div>
+                    <div style="font-weight:700; font-size:1rem;">{{ order.item_title }}</div>
+                    <div style="font-size:0.85rem; color:var(--gray-mid);">Order #{{ order.id[:8].upper() }}</div>
+                  </div>
+                </div>
+                <div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid rgba(255,107,53,0.2); display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:0.9rem; color:var(--gray-mid);">Total to pay now</span>
+                  <span style="font-size:1.6rem; font-weight:900; color:var(--orange);">${{ "%.2f"|format(order.total) }}</span>
+                </div>
+              </div>
+
+              <div style="background:#f9f9f9; border-radius:var(--radius-sm); padding:1rem; margin-bottom:1.5rem; font-size:0.85rem; color:var(--gray-mid);">
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.3rem;">
+                  <span>✅</span>
+                  <span>Delivery fee: <strong style="color:var(--black);">${{ "%.2f"|format(order.delivery_fee) }}</strong></span>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.3rem;">
+                  <span>✅</span>
+                  <span>Service fee (5%): <strong style="color:var(--black);">${{ "%.2f"|format(order.service_fee) }}</strong></span>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                  <span>ℹ️</span>
+                  <span>Item price (${{ "%.2f"|format(order.item_price) }}) paid by runner to seller at pickup</span>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-full btn-lg" id="pay-btn">
+                🔒 Pay ${{ "%.2f"|format(order.total) }} with Stripe
+              </button>
+            </form>
+
+            <p class="text-center text-sm text-muted mt-2">
+              You'll be redirected to Stripe's secure checkout.
+            </p>
+
+            <div style="display:flex; align-items:center; justify-content:center; gap:0.5rem; margin-top:1rem; font-size:0.8rem; color:#aaa;">
+              <span>🔐 256-bit SSL</span>
+              <span>·</span>
+              <span>Powered by Stripe</span>
+              <span>·</span>
+              <span>No card stored</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:1rem; text-align:center;">
+          <a href="/order" style="font-size:0.875rem; color:var(--gray-mid);">← Modify order</a>
+        </div>
+      </div>
+
+      <!-- Right: Order Summary -->
+      <div>
+        <div class="order-summary-card">
+          <div class="card-header">📦 Order Summary</div>
+          <div class="card-body">
+
+            <div class="summary-line">
+              <span class="s-label">Item</span>
+              <span class="s-value" style="font-size:0.9rem; max-width:180px; text-align:right;">{{ order.item_title }}</span>
+            </div>
+            <div class="summary-line">
+              <span class="s-label">Item Price</span>
+              <span class="s-value">${{ "%.2f"|format(order.item_price) }}</span>
+            </div>
+
+            <hr class="divider" style="border-color:rgba(255,255,255,0.08);">
+
+            <div class="summary-line">
+              <span class="s-label">Distance</span>
+              <span class="s-value">{{ order.distance_miles }} mi</span>
+            </div>
+            <div class="summary-line">
+              <span class="s-label">Delivery Fee</span>
+              <span class="s-value">${{ "%.2f"|format(order.delivery_fee) }}</span>
+            </div>
+            <div class="summary-line">
+              <span class="s-label">Service Fee (5%)</span>
+              <span class="s-value">${{ "%.2f"|format(order.service_fee) }}</span>
+            </div>
+
+            <div class="summary-line total">
+              <span class="s-label">Total Due Now</span>
+              <span class="s-value">${{ "%.2f"|format(order.total) }}</span>
+            </div>
+
+            <hr class="divider" style="border-color:rgba(255,255,255,0.08); margin:1rem 0;">
+
+            <div class="summary-line">
+              <span class="s-label">Deliver to</span>
+              <span class="s-value" style="font-size:0.85rem; text-align:right; max-width:180px;">{{ order.delivery_address }}</span>
+            </div>
+            <div class="summary-line">
+              <span class="s-label">Name</span>
+              <span class="s-value">{{ order.buyer_name }}</span>
+            </div>
+            <div class="summary-line">
+              <span class="s-label">Order ID</span>
+              <span class="s-value" style="font-size:0.8rem; color:rgba(255,255,255,0.5);">#{{ order.id[:8].upper() }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- FB Link -->
+        <div style="margin-top:1rem; background:var(--black); border-radius:var(--radius); padding:1rem;">
+          <div style="font-size:0.8rem; color:rgba(255,255,255,0.4); margin-bottom:0.4rem;">Facebook Listing</div>
+          <a href="{{ order.fb_link }}" target="_blank" rel="noopener"
+             style="font-size:0.82rem; color:var(--orange); word-break:break-all;">
+            {{ order.fb_link[:70] }}{% if order.fb_link|length > 70 %}…{% endif %}
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><span>GrabIt</span> &copy; 2024 &nbsp;·&nbsp; Bethesda &amp; DC Area</p>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('pay-form').addEventListener('submit', function() {
+    const btn = document.getElementById('pay-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Redirecting to Stripe...';
+  });
+</script>
+
+</body>
+</html>

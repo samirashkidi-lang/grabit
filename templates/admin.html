@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — GrabIt</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a href="/" class="navbar-brand">Grab<span>It</span></a>
+    <div class="navbar-links">
+      <a href="/">Home</a>
+      <a href="/order">New Order</a>
+      <a href="/runner">Runner Dashboard</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Admin Header -->
+<div class="admin-header">
+  <div class="container">
+    <h1>🛠 Admin Dashboard</h1>
+    <p style="color:rgba(255,255,255,0.55); font-size:0.9rem; margin-top:0.3rem;">GrabIt — Internal Operations</p>
+  </div>
+</div>
+
+<section style="padding-bottom:4rem;">
+  <div class="container">
+
+    <!-- Stats -->
+    <div class="stat-cards">
+      <div class="stat-card">
+        <div class="stat-label">Total Orders</div>
+        <div class="stat-value">{{ order_count }}</div>
+        <div class="stat-sub">all time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Revenue</div>
+        <div class="stat-value">${{ "%.2f"|format(total_revenue) }}</div>
+        <div class="stat-sub">paid orders</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Platform Profit</div>
+        <div class="stat-value">${{ "%.2f"|format(total_platform_profit) }}</div>
+        <div class="stat-sub">service + delivery cut</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Runner Payouts</div>
+        <div class="stat-value">${{ "%.2f"|format(total_runner_payouts) }}</div>
+        <div class="stat-sub">on delivered orders</div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:2rem;">
+      <div class="stat-card" style="border-top-color:#198754;">
+        <div class="stat-label">Delivered</div>
+        <div class="stat-value" style="color:#198754;">{{ delivered_count }}</div>
+      </div>
+      <div class="stat-card" style="border-top-color:#ffc107;">
+        <div class="stat-label">Pending / Open</div>
+        <div class="stat-value" style="color:#cc9a00;">{{ pending_count }}</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('orders', this)">All Orders</button>
+      <button class="tab-btn" onclick="switchTab('runners', this)">Runners ({{ runners|length }})</button>
+    </div>
+
+    <!-- Orders Tab -->
+    <div class="tab-panel active" id="tab-orders">
+
+      <!-- Search / filter -->
+      <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1rem; align-items:center;">
+        <input type="text" id="order-search" class="form-control" placeholder="🔍 Search orders..."
+               style="max-width:280px; padding:0.55rem 0.85rem; font-size:0.875rem;" oninput="filterOrders()">
+        <select id="status-filter" class="form-control"
+                style="max-width:180px; padding:0.55rem 0.85rem; font-size:0.875rem;" onchange="filterOrders()">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="paid">Paid</option>
+          <option value="accepted">Accepted</option>
+          <option value="picked_up">Picked Up</option>
+          <option value="delivered">Delivered</option>
+        </select>
+      </div>
+
+      {% if orders %}
+      <div class="table-wrap">
+        <table id="orders-table">
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Item</th>
+              <th>Buyer</th>
+              <th>Price</th>
+              <th>Distance</th>
+              <th>Fees</th>
+              <th>Total</th>
+              <th>Runner</th>
+              <th>Status</th>
+              <th>Payment</th>
+              <th>Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for o in orders %}
+            <tr class="order-row"
+                data-status="{{ o.status }}"
+                data-search="{{ o.buyer_name|lower }} {{ o.buyer_email|lower }} {{ o.item_title|lower }} {{ o.id|lower }}">
+              <td style="font-size:0.8rem; font-family:monospace; color:var(--gray-mid);">#{{ o.id[:8].upper() }}</td>
+              <td>
+                <div style="font-weight:600; font-size:0.875rem;">{{ o.item_title }}</div>
+                <a href="{{ o.fb_link }}" target="_blank" rel="noopener" style="font-size:0.75rem; color:#1a4bcc;">🔗 FB Listing</a>
+              </td>
+              <td>
+                <div style="font-size:0.875rem; font-weight:600;">{{ o.buyer_name }}</div>
+                <div style="font-size:0.78rem; color:var(--gray-mid);">{{ o.buyer_email }}</div>
+                {% if o.buyer_phone %}
+                <div style="font-size:0.78rem; color:var(--gray-mid);">{{ o.buyer_phone }}</div>
+                {% endif %}
+              </td>
+              <td style="font-weight:600;">${{ "%.2f"|format(o.item_price) }}</td>
+              <td>{{ o.distance_miles }} mi</td>
+              <td>
+                <div style="font-size:0.8rem;">Del: ${{ "%.2f"|format(o.delivery_fee) }}</div>
+                <div style="font-size:0.8rem;">Svc: ${{ "%.2f"|format(o.service_fee) }}</div>
+                <div style="font-size:0.75rem; color:#198754;">Platform: ${{ "%.2f"|format(o.platform_profit) }}</div>
+                <div style="font-size:0.75rem; color:#0d6efd;">Runner: ${{ "%.2f"|format(o.runner_payout) }}</div>
+              </td>
+              <td style="font-weight:700; color:var(--orange);">${{ "%.2f"|format(o.total) }}</td>
+              <td style="font-size:0.875rem;">
+                {% if o.runner_id and o.runner_id in runner_map %}
+                  {{ runner_map[o.runner_id].name }}
+                {% else %}
+                  <span style="color:#aaa;">—</span>
+                {% endif %}
+              </td>
+              <td><span class="badge badge-{{ o.status }}">{{ status_labels.get(o.status, o.status) }}</span></td>
+              <td>
+                {% if o.payment_status == 'paid' %}
+                <span style="color:#198754; font-size:0.8rem;">✅ Paid</span>
+                {% else %}
+                <span style="color:#dc3545; font-size:0.8rem;">⏳ Unpaid</span>
+                {% endif %}
+              </td>
+              <td style="font-size:0.78rem; color:var(--gray-mid); white-space:nowrap;">{{ o.created_at.strftime('%b %d\n%I:%M %p') }}</td>
+              <td>
+                <div style="display:flex; flex-direction:column; gap:0.35rem; min-width:120px;">
+                  <a href="/confirmation/{{ o.id }}" class="btn btn-outline btn-sm" style="font-size:0.75rem; padding:0.3rem 0.6rem;">👁 View</a>
+                  <form method="post" action="/admin/orders/{{ o.id }}/status" style="display:flex; gap:0.3rem;">
+                    <select name="status" class="form-control" style="padding:0.3rem 0.5rem; font-size:0.75rem; flex:1;">
+                      <option value="pending" {% if o.status=='pending' %}selected{% endif %}>Pending</option>
+                      <option value="paid" {% if o.status=='paid' %}selected{% endif %}>Paid</option>
+                      <option value="accepted" {% if o.status=='accepted' %}selected{% endif %}>Accepted</option>
+                      <option value="picked_up" {% if o.status=='picked_up' %}selected{% endif %}>Picked Up</option>
+                      <option value="delivered" {% if o.status=='delivered' %}selected{% endif %}>Delivered</option>
+                    </select>
+                    <button type="submit" class="btn btn-dark btn-sm" style="font-size:0.75rem; padding:0.3rem 0.5rem;">✓</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <h3>No orders yet</h3>
+        <p>Orders will appear here once buyers start placing them.</p>
+        <a href="/order" class="btn btn-primary mt-3">Place a Test Order</a>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Runners Tab -->
+    <div class="tab-panel" id="tab-runners">
+      {% if runners %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Status</th>
+              <th>Total Earnings</th>
+              <th>Joined</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in runners %}
+            <tr>
+              <td>
+                <div style="display:flex; align-items:center; gap:0.6rem;">
+                  <div style="width:34px; height:34px; border-radius:50%; background:var(--orange); display:flex; align-items:center; justify-content:center; font-weight:700; color:white; font-size:0.9rem; flex-shrink:0;">
+                    {{ r.name[0].upper() }}
+                  </div>
+                  <strong>{{ r.name }}</strong>
+                </div>
+              </td>
+              <td style="font-size:0.875rem;">{{ r.email }}</td>
+              <td style="font-size:0.875rem;">{{ r.phone or '—' }}</td>
+              <td>
+                {% if r.is_active %}
+                <span style="color:#198754; font-size:0.82rem; font-weight:600;">● Active</span>
+                {% else %}
+                <span style="color:#dc3545; font-size:0.82rem;">● Inactive</span>
+                {% endif %}
+              </td>
+              <td style="font-weight:700; color:#198754;">${{ "%.2f"|format(r.total_earnings) }}</td>
+              <td style="font-size:0.8rem; color:var(--gray-mid);">{{ r.created_at.strftime('%b %d, %Y') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">🏃</div>
+        <h3>No runners registered</h3>
+        <p>Share the runner page with local delivery drivers.</p>
+        <a href="/runner?tab=register" class="btn btn-primary mt-3">Register a Runner</a>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><span>GrabIt</span> &copy; 2024 &nbsp;·&nbsp; Bethesda &amp; DC Area &nbsp;·&nbsp; Admin Panel</p>
+  </div>
+</footer>
+
+<script>
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  function filterOrders() {
+    const q      = document.getElementById('order-search').value.toLowerCase();
+    const status = document.getElementById('status-filter').value;
+    document.querySelectorAll('.order-row').forEach(row => {
+      const matchSearch = !q || row.dataset.search.includes(q);
+      const matchStatus = !status || row.dataset.status === status;
+      row.style.display = (matchSearch && matchStatus) ? '' : 'none';
+    });
+  }
+</script>
+
+</body>
+</html>

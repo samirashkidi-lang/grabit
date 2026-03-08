@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Confirmed — GrabIt</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a href="/" class="navbar-brand">Grab<span>It</span></a>
+    <div class="navbar-links">
+      <a href="/">Home</a>
+      <a href="/order">New Order</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Confirmation Hero -->
+<div class="confirmation-hero">
+  <div class="container">
+    <div class="check-icon">✓</div>
+    {% if order.status == 'delivered' %}
+      <h1>Item Delivered! 🎉</h1>
+      <p>Your item has been successfully delivered. Enjoy!</p>
+    {% elif order.status == 'picked_up' %}
+      <h1>On the way! 🚗</h1>
+      <p>Your runner has picked up the item and is heading to you.</p>
+    {% elif order.status == 'accepted' %}
+      <h1>Runner is on it! 🏃</h1>
+      <p>Your runner has accepted the job and is heading to the seller.</p>
+    {% elif order.payment_status == 'paid' %}
+      <h1>Your runner has been notified!</h1>
+      <p>Payment confirmed. A local runner will accept and pick up your item shortly.</p>
+    {% else %}
+      <h1>Order Received!</h1>
+      <p>Complete your payment to get a runner assigned.</p>
+    {% endif %}
+  </div>
+</div>
+
+<section class="section-pad">
+  <div class="container" style="max-width:760px;">
+
+    <!-- Status Timeline -->
+    <div class="card mb-3">
+      <div class="card-header">📊 Order Status</div>
+      <div class="card-body">
+
+        <div style="display:flex; align-items:center; gap:0; position:relative; padding:0 0.5rem;">
+
+          {% set steps = [
+            ('paid',      '💳', 'Payment\nConfirmed'),
+            ('accepted',  '🤝', 'Runner\nAccepted'),
+            ('picked_up', '📦', 'Item\nPicked Up'),
+            ('delivered', '🏠', 'Delivered'),
+          ] %}
+
+          {% set status_order = {'pending':0, 'paid':1, 'accepted':2, 'picked_up':3, 'delivered':4} %}
+          {% set current_level = status_order.get(order.status, 0) %}
+
+          <div style="display:flex; width:100%; align-items:center;">
+            {% for key, icon, label in steps %}
+              {% set level = status_order[key] %}
+              {% set is_done = current_level >= level %}
+              {% set is_current = current_level == level %}
+
+              <div style="flex:1; text-align:center; position:relative;">
+                <div style="
+                  width:48px; height:48px; border-radius:50%; margin:0 auto 0.5rem;
+                  display:flex; align-items:center; justify-content:center;
+                  font-size:1.2rem;
+                  background:{% if is_done %}var(--orange){% else %}#e0e0e0{% endif %};
+                  {% if is_current %}box-shadow:0 0 0 4px rgba(255,107,53,0.3);{% endif %}
+                  transition:all 0.3s;
+                ">{{ icon }}</div>
+                <div style="font-size:0.75rem; font-weight:{% if is_done %}700{% else %}400{% endif %}; color:{% if is_done %}var(--black){% else %}#aaa{% endif %}; white-space:pre-line; line-height:1.3;">{{ label }}</div>
+              </div>
+
+              {% if not loop.last %}
+              <div style="
+                height:3px; flex:0.5;
+                background:{% if current_level > level %}var(--orange){% else %}#e0e0e0{% endif %};
+                margin-bottom:1.5rem;
+                transition:background 0.3s;
+              "></div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+
+        <div style="text-align:center; margin-top:1.25rem;">
+          {% set sl = status_labels[order.status] if order.status in status_labels else order.status %}
+          <span class="badge badge-{{ order.status }}">{{ sl }}</span>
+          {% if order.payment_status != 'paid' %}
+          <div class="alert alert-warning mt-2">
+            Payment not yet confirmed. <a href="/pay/{{ order.id }}">Complete payment →</a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Order Details -->
+    <div class="card mb-3">
+      <div class="card-header">📦 Order Details</div>
+      <div class="card-body">
+
+        <div class="order-details-grid">
+          <div class="detail-item">
+            <div class="d-label">Order ID</div>
+            <div class="d-value">#{{ order.id[:8].upper() }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="d-label">Item</div>
+            <div class="d-value">{{ order.item_title }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="d-label">Item Price</div>
+            <div class="d-value">${{ "%.2f"|format(order.item_price) }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="d-label">Distance</div>
+            <div class="d-value">{{ order.distance_miles }} miles</div>
+          </div>
+          <div class="detail-item">
+            <div class="d-label">Delivery Fee</div>
+            <div class="d-value">${{ "%.2f"|format(order.delivery_fee) }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="d-label">Service Fee</div>
+            <div class="d-value">${{ "%.2f"|format(order.service_fee) }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="d-label">Total Paid</div>
+            <div class="d-value" style="color:var(--orange); font-size:1.1rem;">${{ "%.2f"|format(order.total) }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="d-label">Placed</div>
+            <div class="d-value">{{ order.created_at.strftime('%b %d, %Y %I:%M %p') }}</div>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="order-details-grid">
+          <div class="detail-item">
+            <div class="d-label">Buyer</div>
+            <div class="d-value">{{ order.buyer_name }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="d-label">Email</div>
+            <div class="d-value">{{ order.buyer_email }}</div>
+          </div>
+          <div class="detail-item" style="grid-column:1/-1;">
+            <div class="d-label">Delivery Address</div>
+            <div class="d-value">{{ order.delivery_address }}</div>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="detail-item">
+          <div class="d-label">Facebook Listing</div>
+          <div class="d-value">
+            <a href="{{ order.fb_link }}" target="_blank" rel="noopener" style="font-size:0.875rem; word-break:break-all;">
+              {{ order.fb_link[:80] }}{% if order.fb_link|length > 80 %}…{% endif %}
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Runner Info (if assigned) -->
+    {% if runner %}
+    <div class="card mb-3">
+      <div class="card-header">🏃 Your Runner</div>
+      <div class="card-body">
+        <div style="display:flex; align-items:center; gap:1rem;">
+          <div style="width:56px; height:56px; border-radius:50%; background:var(--orange); display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:white; flex-shrink:0;">
+            {{ runner.name[0].upper() }}
+          </div>
+          <div>
+            <div style="font-weight:700; font-size:1.05rem;">{{ runner.name }}</div>
+            {% if runner.phone %}
+            <div style="font-size:0.875rem; color:var(--gray-mid);">📞 {{ runner.phone }}</div>
+            {% endif %}
+            <div style="font-size:0.875rem; color:var(--gray-mid);">✉️ {{ runner.email }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% elif order.payment_status == 'paid' %}
+    <div class="card mb-3">
+      <div class="card-header">🔍 Finding Your Runner</div>
+      <div class="card-body">
+        <div style="display:flex; align-items:center; gap:1rem;">
+          <div style="font-size:2rem;">⏳</div>
+          <div>
+            <p style="margin:0; font-weight:600;">A runner is being assigned</p>
+            <p style="margin:0.25rem 0 0; font-size:0.875rem; color:var(--gray-mid);">
+              Local runners have been notified. You'll hear from them soon — typical wait is under 2 hours.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div style="display:flex; gap:1rem; flex-wrap:wrap; justify-content:center; margin-top:1.5rem;">
+      <a href="/order" class="btn btn-primary">📋 Place Another Order</a>
+      <a href="/" class="btn btn-outline">🏠 Back to Home</a>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><span>GrabIt</span> &copy; 2024 &nbsp;·&nbsp; Bethesda &amp; DC Area</p>
+  </div>
+</footer>
+
+</body>
+</html>

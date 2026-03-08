@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Place an Order — GrabIt</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a href="/" class="navbar-brand">Grab<span>It</span></a>
+    <div class="navbar-links">
+      <a href="/#how-it-works">How It Works</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/runner">Become a Runner</a>
+      {% if fb_user %}
+        <span style="display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;color:rgba(255,255,255,0.8);">
+          {% if fb_user.picture %}<img src="{{ fb_user.picture }}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;" alt="">{% endif %}
+          {{ fb_user.name.split()[0] }}
+        </span>
+        <a href="/auth/logout" class="btn btn-outline btn-sm">Log Out</a>
+      {% elif fb_login_enabled %}
+        <a href="/auth/facebook" class="btn btn-facebook btn-sm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="white" style="vertical-align:middle;margin-right:5px;"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          Login with Facebook
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<!-- Page Hero -->
+<div class="page-hero">
+  <div class="container">
+    <h1>📋 Place Your Order</h1>
+    <p>Paste your Facebook Marketplace link and we'll handle the rest.</p>
+  </div>
+</div>
+
+<!-- Main Content -->
+<section class="section-pad">
+  <div class="container">
+
+    {% if errors %}
+    <div style="margin-bottom:1.5rem;">
+      {% for e in errors %}
+      <div class="alert alert-danger">{{ e }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not fb_user and fb_login_enabled %}
+    <div style="background:#1877f2;border-radius:var(--radius);padding:1.25rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+      <div style="color:white;">
+        <strong style="font-size:1rem;">Speed things up</strong>
+        <p style="margin:0;font-size:0.875rem;opacity:0.9;">Login with Facebook to auto-fill your name and email.</p>
+      </div>
+      <a href="/auth/facebook" style="background:white;color:#1877f2;font-weight:700;padding:0.6rem 1.25rem;border-radius:8px;text-decoration:none;font-size:0.9rem;display:flex;align-items:center;gap:0.4rem;white-space:nowrap;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#1877f2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+        Login with Facebook
+      </a>
+    </div>
+    {% elif fb_user %}
+    <div style="background:#f0fff4;border:2px solid #34a853;border-radius:var(--radius);padding:1rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.75rem;">
+      {% if fb_user.picture %}<img src="{{ fb_user.picture }}" style="width:40px;height:40px;border-radius:50%;" alt="">{% endif %}
+      <div>
+        <strong style="color:#1a1a1a;">Logged in as {{ fb_user.name }}</strong>
+        <p style="margin:0;font-size:0.85rem;color:#555;">Your info has been auto-filled below. <a href="/auth/logout" style="color:#1877f2;">Log out</a></p>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="order-layout">
+
+      <!-- Left: Form -->
+      <div>
+        <form method="post" action="/order" id="order-form">
+
+          <!-- FB Link -->
+          <div class="card mb-3">
+            <div class="card-header">🔗 Facebook Marketplace Listing</div>
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label" for="fb_link">Facebook Marketplace URL <span class="required">*</span></label>
+                <input
+                  type="url"
+                  id="fb_link"
+                  name="fb_link"
+                  class="form-control"
+                  placeholder="https://www.facebook.com/marketplace/item/..."
+                  value="{{ form.fb_link if form else '' }}"
+                  required
+                >
+                <span class="form-hint">Paste the full URL from Facebook Marketplace</span>
+                <div id="fb-preview" class="fb-link-preview" style="display:none;">
+                  🔗 <span id="fb-preview-url"></span>
+                </div>
+              </div>
+
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label" for="item_title">Item Title <span class="required">*</span></label>
+                  <input
+                    type="text"
+                    id="item_title"
+                    name="item_title"
+                    class="form-control"
+                    placeholder="e.g. IKEA Couch — Like New"
+                    value="{{ form.item_title if form else '' }}"
+                    required
+                  >
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label" for="item_price">
+                    Item Price <span class="required">*</span>
+                    <span class="text-muted text-sm fw-normal">(min ${{ min_price|int }})</span>
+                  </label>
+                  <input
+                    type="number"
+                    id="item_price"
+                    name="item_price"
+                    class="form-control"
+                    placeholder="e.g. 150"
+                    min="{{ min_price }}"
+                    step="1"
+                    value="{{ form.item_price if form else '' }}"
+                    required
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Delivery Info -->
+          <div class="card mb-3">
+            <div class="card-header">📍 Delivery Details</div>
+            <div class="card-body">
+
+              <div class="form-group">
+                <label class="form-label" for="delivery_address">Your Delivery Address <span class="required">*</span></label>
+                <input
+                  type="text"
+                  id="delivery_address"
+                  name="delivery_address"
+                  class="form-control"
+                  placeholder="123 Main St, Bethesda, MD 20814"
+                  value="{{ form.delivery_address if form else '' }}"
+                  required
+                >
+                <span class="form-hint">Where should we deliver the item?</span>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="pickup_address">Seller's Pickup Address</label>
+                <input
+                  type="text"
+                  id="pickup_address"
+                  name="pickup_address"
+                  class="form-control"
+                  placeholder="456 Seller Rd, Rockville, MD — (from the listing)"
+                  value="{{ form.pickup_address if form else '' }}"
+                >
+                <span class="form-hint">Copy from the FB listing if available (optional for now)</span>
+              </div>
+
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label" for="distance_miles">
+                  Approximate Distance <span class="required">*</span>
+                  <span class="text-muted text-sm fw-normal">(max {{ max_miles }} miles)</span>
+                </label>
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                  <input
+                    type="number"
+                    id="distance_miles"
+                    name="distance_miles"
+                    class="form-control"
+                    placeholder="e.g. 4.5"
+                    min="0.1"
+                    max="{{ max_miles }}"
+                    step="0.1"
+                    value="{{ form.distance_miles if form else '' }}"
+                    style="flex:1;"
+                    required
+                  >
+                  <span style="white-space:nowrap; color:var(--gray-mid); font-size:0.9rem;">miles</span>
+                </div>
+                <span class="form-hint">Straight-line distance between pickup and drop-off</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Buyer Info -->
+          <div class="card mb-3">
+            <div class="card-header">👤 Your Info</div>
+            <div class="card-body">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label" for="buyer_name">Your Name <span class="required">*</span></label>
+                  <input
+                    type="text"
+                    id="buyer_name"
+                    name="buyer_name"
+                    class="form-control"
+                    placeholder="Alex Johnson"
+                    value="{{ form.buyer_name if form else (fb_user.name if fb_user else '') }}"
+                    required
+                  >
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label" for="buyer_email">Email <span class="required">*</span></label>
+                  <input
+                    type="email"
+                    id="buyer_email"
+                    name="buyer_email"
+                    class="form-control"
+                    placeholder="alex@example.com"
+                    value="{{ form.buyer_email if form else (fb_user.email if fb_user else '') }}"
+                    required
+                  >
+                </div>
+              </div>
+              <div class="form-group mt-2" style="margin-bottom:0;">
+                <label class="form-label" for="buyer_phone">Phone (optional)</label>
+                <input
+                  type="tel"
+                  id="buyer_phone"
+                  name="buyer_phone"
+                  class="form-control"
+                  placeholder="(301) 555-0100"
+                  value="{{ form.buyer_phone if form else '' }}"
+                >
+                <span class="form-hint">For runner to contact you at delivery</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mobile: Quote appears here (injected by JS) -->
+          <div id="quote-mobile" class="d-none" style="display:none;"></div>
+
+          <button type="submit" class="btn btn-primary btn-full btn-lg mt-3" id="submit-btn">
+            💳 Get Quote &amp; Proceed to Payment
+          </button>
+
+          <p class="text-center text-sm text-muted mt-2">
+            You'll see the final total before any charge is made.
+          </p>
+        </form>
+      </div>
+
+      <!-- Right: Live Quote -->
+      <div>
+        <div class="quote-box" id="quote-box">
+          <h3>💰 Instant Quote</h3>
+          <div id="quote-content">
+            <div class="quote-placeholder">
+              Enter an item price and distance to see your quote.
+            </div>
+          </div>
+        </div>
+
+        <!-- Info box -->
+        <div style="background:var(--orange-light); border-radius:var(--radius); padding:1.25rem; margin-top:1.25rem; border-left:4px solid var(--orange);">
+          <h4 style="font-size:0.95rem; margin-bottom:0.5rem;">How the fees work</h4>
+          <ul style="font-size:0.875rem; color:var(--gray-dark); padding-left:1.25rem; line-height:1.9;">
+            <li><strong>Delivery fee</strong> — flat fee by distance</li>
+            <li><strong>Service fee</strong> — 5% of item price</li>
+            <li>Item price is paid directly at pickup</li>
+          </ul>
+        </div>
+
+        <div style="border-radius:var(--radius); padding:1.25rem; margin-top:1rem; background:#f9f9f9; font-size:0.85rem; color:var(--gray-mid);">
+          <strong style="color:var(--black);">Delivery Tiers</strong>
+          <div style="margin-top:0.5rem; display:grid; gap:0.35rem;">
+            <div style="display:flex; justify-content:space-between;"><span>Under 5 miles</span><strong style="color:var(--black);">$10</strong></div>
+            <div style="display:flex; justify-content:space-between;"><span>5 – 10 miles</span><strong style="color:var(--black);">$20</strong></div>
+            <div style="display:flex; justify-content:space-between;"><span>10 – 15 miles</span><strong style="color:var(--black);">$30</strong></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><span>GrabIt</span> &copy; 2024 &nbsp;·&nbsp; Bethesda &amp; DC Area</p>
+  </div>
+</footer>
+
+<script>
+  // Live Quote ----------------------------------------------------------------
+  const priceInput    = document.getElementById('item_price');
+  const distanceInput = document.getElementById('distance_miles');
+  const quoteContent  = document.getElementById('quote-content');
+  const fbInput       = document.getElementById('fb_link');
+  const fbPreview     = document.getElementById('fb-preview');
+  const fbPreviewUrl  = document.getElementById('fb-preview-url');
+
+  let quoteTimer = null;
+
+  function formatMoney(n) {
+    return '$' + parseFloat(n).toFixed(2);
+  }
+
+  function renderQuote(data) {
+    quoteContent.innerHTML = `
+      <div class="quote-row">
+        <span class="label">Item price</span>
+        <span class="amount">${formatMoney(data.item_price)}</span>
+      </div>
+      <div class="quote-row">
+        <span class="label">Delivery fee (${data.distance_miles} mi)</span>
+        <span class="amount">${formatMoney(data.delivery_fee)}</span>
+      </div>
+      <div class="quote-row">
+        <span class="label">Service fee (5%)</span>
+        <span class="amount">${formatMoney(data.service_fee)}</span>
+      </div>
+      <div class="quote-row total">
+        <span class="label">Total charged today</span>
+        <span class="amount">${formatMoney(data.total)}</span>
+      </div>
+      <p style="font-size:0.78rem; color:rgba(255,255,255,0.45); margin-top:1rem;">
+        * Item price paid by runner at pickup. You pay delivery + service fee now.
+      </p>
+    `;
+  }
+
+  function fetchQuote() {
+    const price    = parseFloat(priceInput.value);
+    const distance = parseFloat(distanceInput.value);
+
+    if (!price || !distance || price < 1 || distance < 0.1) {
+      quoteContent.innerHTML = '<div class="quote-placeholder">Enter an item price and distance to see your quote.</div>';
+      return;
+    }
+
+    quoteContent.innerHTML = '<div class="quote-placeholder"><span class="spinner"></span> Calculating...</div>';
+
+    fetch(`/api/quote?item_price=${price}&distance_miles=${distance}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          quoteContent.innerHTML = `<div class="quote-placeholder" style="color:#ff8080;">${data.error}</div>`;
+        } else {
+          renderQuote(data);
+        }
+      })
+      .catch(() => {
+        quoteContent.innerHTML = '<div class="quote-placeholder" style="color:#ff8080;">Could not fetch quote.</div>';
+      });
+  }
+
+  function debouncedQuote() {
+    clearTimeout(quoteTimer);
+    quoteTimer = setTimeout(fetchQuote, 400);
+  }
+
+  priceInput.addEventListener('input', debouncedQuote);
+  distanceInput.addEventListener('input', debouncedQuote);
+
+  // Prefill from URL params if any
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('price')) priceInput.value = urlParams.get('price');
+  if (urlParams.get('distance')) distanceInput.value = urlParams.get('distance');
+  if (priceInput.value && distanceInput.value) fetchQuote();
+
+  // FB link preview
+  fbInput.addEventListener('input', () => {
+    const val = fbInput.value.trim();
+    if (val.startsWith('http')) {
+      fbPreview.style.display = 'flex';
+      fbPreviewUrl.textContent = val.length > 60 ? val.slice(0, 60) + '…' : val;
+    } else {
+      fbPreview.style.display = 'none';
+    }
+  });
+
+  // Pre-fill FB link from stored form value
+  if (fbInput.value.trim().startsWith('http')) {
+    fbPreview.style.display = 'flex';
+    fbPreviewUrl.textContent = fbInput.value.slice(0, 60) + (fbInput.value.length > 60 ? '…' : '');
+  }
+</script>
+
+</body>
+</html>
